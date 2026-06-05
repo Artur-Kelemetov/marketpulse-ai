@@ -89,10 +89,8 @@ export const generatedMarketIdeaSchema = z
     const disclaimer = value.disclaimer.toLowerCase();
     const hasDisclaimer =
       disclaimer.includes("not financial advice") ||
-      disclaimer.includes("\u043d\u0435 \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f") ||
-      disclaimer.includes(
-        "\u0444\u0438\u043d\u0430\u043d\u0441\u043e\u0432\u043e\u0439 \u0440\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0430\u0446\u0438\u0435\u0439",
-      );
+      disclaimer.includes("не является") ||
+      disclaimer.includes("финансовой рекомендацией");
 
     if (!hasDisclaimer) {
       ctx.addIssue({
