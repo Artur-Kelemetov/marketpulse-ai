@@ -1,10 +1,15 @@
 ﻿import type { GeneratedMarketIdea } from "@/lib/domain/market-idea";
 
+export type MockMarketIdea = GeneratedMarketIdea & {
+  id: string;
+};
+
 export const informationalDisclaimer =
   "This content is for informational and educational purposes only and is not financial advice.";
 
-export const mockMarketIdeas: GeneratedMarketIdea[] = [
+export const mockMarketIdeas: MockMarketIdea[] = [
   {
+    id: "idea_btc_breakout",
     contentType: "trade_idea",
     assetIds: ["asset_btc"],
     suggestedAction: "buy",
@@ -44,6 +49,7 @@ export const mockMarketIdeas: GeneratedMarketIdea[] = [
     status: "draft",
   },
   {
+    id: "idea_aapl_confirmation",
     contentType: "asset_analysis",
     assetIds: ["asset_aapl"],
     suggestedAction: "watch",
@@ -83,6 +89,7 @@ export const mockMarketIdeas: GeneratedMarketIdea[] = [
     status: "needs_review",
   },
   {
+    id: "idea_spx_qqq_breadth",
     contentType: "market_watchlist",
     assetIds: ["asset_spx", "asset_qqq"],
     suggestedAction: "hold",
@@ -123,6 +130,10 @@ export const mockMarketIdeas: GeneratedMarketIdea[] = [
 
 export function getMockMarketIdeas() {
   return mockMarketIdeas;
+}
+
+export function getMockMarketIdeaById(id: string) {
+  return mockMarketIdeas.find((idea) => idea.id === id) ?? null;
 }
 
 export function getMockMarketIdeaByAssetId(assetId: string) {
