@@ -5,6 +5,7 @@ export default function LoginPage() {
     <RoutePlaceholder
       title="Login"
       description="Telegram WebApp and admin session entry point will live here."
+      shell={false}
       items={[
         "Telegram initData verification",
         "HTTP-only session cookie",
