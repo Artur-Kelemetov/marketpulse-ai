@@ -61,3 +61,7 @@ export function getMockScheduledPublications() {
 export function getMockPublicationLog() {
   return mockPublicationLog;
 }
+
+export function getMockPublicationById(id: string) {
+  return mockPublicationLog.find((publication) => publication.id === id) ?? null;
+}
