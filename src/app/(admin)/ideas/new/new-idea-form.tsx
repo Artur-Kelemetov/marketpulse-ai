@@ -1,10 +1,14 @@
 ﻿"use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Bot, CheckCircle2, FileText, Save, ShieldCheck, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { GenerateIdeaResponse } from "@/lib/ai/generate-idea-contract";
+import type {
+  ReviewIdeaSafetyResponse,
+  SafetyReviewItem,
+} from "@/lib/ai/review-idea-safety-contract";
 import type { MockAsset } from "@/lib/mock-data";
 
 const contentTypeOptions = [
@@ -41,6 +45,38 @@ const moodOptions = [
   { value: "bearish", label: "Bearish" },
   { value: "volatile", label: "Volatile" },
   { value: "uncertain", label: "Uncertain" },
+];
+const defaultSafetyItems: SafetyReviewItem[] = [
+  {
+    label: "Idea basics",
+    description: "Asset, title, and thesis are present.",
+    passed: false,
+    severity: "blocking",
+  },
+  {
+    label: "Clear disclaimer",
+    description: "The text says it is not financial advice.",
+    passed: false,
+    severity: "blocking",
+  },
+  {
+    label: "Risk notes",
+    description: "Downside, uncertainty, or volatility is described.",
+    passed: false,
+    severity: "blocking",
+  },
+  {
+    label: "Invalidation",
+    description: "The setup has a condition that makes the idea wrong.",
+    passed: false,
+    severity: "blocking",
+  },
+  {
+    label: "No profit promise",
+    description: "The idea avoids guaranteed-return language.",
+    passed: false,
+    severity: "warning",
+  },
 ];
 
 type NewIdeaFormValues = {
@@ -83,9 +119,11 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
     "Fill the form to prepare a local draft preview.",
   );
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [safetyItems, setSafetyItems] =
+    useState<SafetyReviewItem[]>(defaultSafetyItems);
 
   const selectedAsset = assets.find((asset) => asset.id === values.assetId);
-  const safetyItems = useMemo(() => buildSafetyItems(values), [values]);
   const passedSafetyCount = safetyItems.filter((item) => item.passed).length;
   const readyForMockGeneration = Boolean(values.assetId && selectedAsset);
   const draftPreview = buildDraftPreview(values, selectedAsset);
@@ -95,6 +133,7 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
       ...currentValues,
       [name]: value,
     }));
+    setSafetyItems(defaultSafetyItems);
   }
 
   async function handleGenerateClick() {
@@ -137,6 +176,7 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
         ...currentValues,
         ...data.idea,
       }));
+      setSafetyItems(defaultSafetyItems);
       setWorkflowMessage("API returned a mock-generated idea.");
     } catch {
       setWorkflowMessage("Could not generate idea through API. Try again.");
@@ -144,18 +184,49 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
       setIsGenerating(false);
     }
   }
-  function handleReviewClick() {
-    const missingItems = safetyItems
-      .filter((item) => !item.passed)
-      .map((item) => item.label.toLowerCase());
+  async function handleReviewClick() {
+    setIsReviewing(true);
+    setWorkflowMessage("Reviewing idea safety through the API route...");
 
-    setWorkflowMessage(
-      missingItems.length === 0
-        ? "Safety review passed locally. This can move toward draft creation."
-        : `Safety review found missing items: ${missingItems.join(", ")}.`,
-    );
+    try {
+      const response = await fetch("/api/ai/review-idea-safety", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assetId: values.assetId,
+          title: values.title,
+          thesis: values.thesis,
+          whyNow: values.whyNow,
+          riskNotes: values.riskNotes,
+          invalidationScenario: values.invalidationScenario,
+          disclaimer: values.disclaimer,
+        }),
+      });
+      const data = (await response.json()) as
+        | ReviewIdeaSafetyResponse
+        | { error?: string; message?: string };
+
+      if (!response.ok || !("items" in data)) {
+        const errorMessage =
+          "message" in data ? data.message : "error" in data ? data.error : null;
+
+        throw new Error(errorMessage ?? "Safety review failed.");
+      }
+
+      setSafetyItems(data.items);
+      setWorkflowMessage(
+        data.blockingCount === 0
+          ? "API safety review passed. This can move toward draft creation."
+          : `API safety review found ${data.blockingCount} blocking issue(s).`,
+      );
+    } catch {
+      setWorkflowMessage("Could not review safety through API. Try again.");
+    } finally {
+      setIsReviewing(false);
+    }
   }
-
   function handleSaveClick() {
     setWorkflowMessage("Draft prepared locally. Persistence will be connected later.");
   }
@@ -337,9 +408,15 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
               <Sparkles className="size-4" />
               {isGenerating ? "Generating..." : "Generate with AI"}
             </Button>
-            <Button type="button" variant="outline" className="justify-start" onClick={handleReviewClick}>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start"
+              disabled={isReviewing}
+              onClick={handleReviewClick}
+            >
               <ShieldCheck className="size-4" />
-              Review safety
+              {isReviewing ? "Reviewing..." : "Review safety"}
             </Button>
             <Button type="button" variant="outline" className="justify-start" onClick={handleSaveClick}>
               <Save className="size-4" />
@@ -362,6 +439,7 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
                 label={item.label}
                 description={item.description}
                 passed={item.passed}
+                severity={item.severity}
               />
             ))}
           </div>
@@ -400,44 +478,6 @@ function buildDraftPreview(values: NewIdeaFormValues, asset?: MockAsset) {
     "",
     values.disclaimer.trim() || "Add a financial disclaimer.",
   ].join("\n");
-}
-
-function buildSafetyItems(values: NewIdeaFormValues) {
-  const joinedText = [values.title, values.thesis, values.whyNow, values.riskNotes]
-    .join(" ")
-    .toLowerCase();
-  const disclaimer = values.disclaimer.toLowerCase();
-
-  return [
-    {
-      label: "Idea basics",
-      description: "Asset, title, and thesis are present.",
-      passed: Boolean(values.assetId && values.title.trim() && values.thesis.trim()),
-    },
-    {
-      label: "Clear disclaimer",
-      description: "The text says it is not financial advice.",
-      passed:
-        disclaimer.includes("not financial advice") ||
-        disclaimer.includes("не является") ||
-        disclaimer.includes("финансовой рекомендацией"),
-    },
-    {
-      label: "Risk notes",
-      description: "Downside, uncertainty, or volatility is described.",
-      passed: Boolean(values.riskNotes.trim()),
-    },
-    {
-      label: "Invalidation",
-      description: "The setup has a condition that makes the idea wrong.",
-      passed: Boolean(values.invalidationScenario.trim()),
-    },
-    {
-      label: "No profit promise",
-      description: "The idea avoids guaranteed-return language.",
-      passed: !/guaranteed|guarantee|risk-free|без риска|гарант/.test(joinedText),
-    },
-  ];
 }
 
 type PanelProps = {
@@ -554,13 +594,27 @@ type ChecklistItemProps = {
   label: string;
   description: string;
   passed: boolean;
+  severity: SafetyReviewItem["severity"];
 };
 
-function ChecklistItem({ label, description, passed }: ChecklistItemProps) {
+function ChecklistItem({
+  label,
+  description,
+  passed,
+  severity,
+}: ChecklistItemProps) {
   return (
     <div className="rounded-lg border border-border bg-background p-3">
       <div className="flex items-center gap-2 font-medium">
-        <CheckCircle2 className={passed ? "size-4 text-emerald-700" : "size-4 text-muted-foreground"} />
+        <CheckCircle2
+          className={
+            passed
+              ? "size-4 text-emerald-700"
+              : severity === "blocking"
+                ? "size-4 text-red-700"
+                : "size-4 text-amber-700"
+          }
+        />
         {label}
       </div>
       <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
