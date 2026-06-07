@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Bot, CheckCircle2, FileText, Save, ShieldCheck, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import type { GenerateIdeaResponse } from "@/lib/ai/generate-idea-contract";
 import type { MockAsset } from "@/lib/mock-data";
 
 const contentTypeOptions = [
@@ -81,6 +82,7 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
   const [workflowMessage, setWorkflowMessage] = useState(
     "Fill the form to prepare a local draft preview.",
   );
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const selectedAsset = assets.find((asset) => asset.id === values.assetId);
   const safetyItems = useMemo(() => buildSafetyItems(values), [values]);
@@ -95,19 +97,53 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
     }));
   }
 
-  function handleGenerateClick() {
+  async function handleGenerateClick() {
     if (!readyForMockGeneration || !selectedAsset) {
-      setWorkflowMessage("Select an asset before mock generation.");
+      setWorkflowMessage("Select an asset before generation.");
       return;
     }
 
-    setValues((currentValues) => ({
-      ...currentValues,
-      ...buildMockGeneratedIdea(currentValues, selectedAsset),
-    }));
-    setWorkflowMessage("Mock AI generation filled the idea fields from your setup.");
-  }
+    setIsGenerating(true);
+    setWorkflowMessage("Generating idea through the API route...");
 
+    try {
+      const response = await fetch("/api/ai/generate-idea", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assetId: values.assetId,
+          contentType: values.contentType,
+          suggestedAction: values.suggestedAction,
+          conviction: values.conviction,
+          timeHorizon: values.timeHorizon,
+          marketMood: values.marketMood,
+          authorContext: values.authorContext,
+        }),
+      });
+      const data = (await response.json()) as
+        | GenerateIdeaResponse
+        | { error?: string; message?: string };
+
+      if (!response.ok || !("idea" in data)) {
+        const errorMessage =
+          "message" in data ? data.message : "error" in data ? data.error : null;
+
+        throw new Error(errorMessage ?? "Generation failed.");
+      }
+
+      setValues((currentValues) => ({
+        ...currentValues,
+        ...data.idea,
+      }));
+      setWorkflowMessage("API returned a mock-generated idea.");
+    } catch {
+      setWorkflowMessage("Could not generate idea through API. Try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  }
   function handleReviewClick() {
     const missingItems = safetyItems
       .filter((item) => !item.passed)
@@ -292,9 +328,14 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
       <aside className="flex flex-col gap-5">
         <Panel title="Workflow" icon={<Sparkles className="size-4" />}>
           <div className="grid gap-2">
-            <Button type="button" className="justify-start" onClick={handleGenerateClick}>
+            <Button
+              type="button"
+              className="justify-start"
+              disabled={isGenerating}
+              onClick={handleGenerateClick}
+            >
               <Sparkles className="size-4" />
-              Generate with AI
+              {isGenerating ? "Generating..." : "Generate with AI"}
             </Button>
             <Button type="button" variant="outline" className="justify-start" onClick={handleReviewClick}>
               <ShieldCheck className="size-4" />
@@ -361,44 +402,6 @@ function buildDraftPreview(values: NewIdeaFormValues, asset?: MockAsset) {
   ].join("\n");
 }
 
-function buildMockGeneratedIdea(values: NewIdeaFormValues, asset: MockAsset) {
-  const actionLabel = formatOptionLabel(values.suggestedAction);
-  const moodLabel = formatOptionLabel(values.marketMood);
-  const horizonLabel = formatOptionLabel(values.timeHorizon);
-  const contentLabel = formatOptionLabel(values.contentType);
-  const directionText = {
-    buy: "constructive upside setup",
-    sell: "downside risk setup",
-    hold: "hold-and-monitor setup",
-    watch: "watchlist setup",
-  }[values.suggestedAction] ?? "watchlist setup";
-
-  return {
-    title: `${asset.displaySymbol} ${actionLabel.toLowerCase()} idea for ${horizonLabel.toLowerCase()} traders`,
-    thesis: `${asset.name} is showing a ${directionText} while the current market mood is ${moodLabel.toLowerCase()}. This mock ${contentLabel.toLowerCase()} frames the asset around price action, recent momentum, and whether the setup still has enough confirmation for the selected ${horizonLabel.toLowerCase()} horizon.`,
-    whyNow: [
-      `${asset.displaySymbol} is currently marked as ${asset.marketMood} in the mock market data.`,
-      `The selected editorial action is ${actionLabel.toLowerCase()} with ${values.conviction} conviction.`,
-      `The idea is being prepared for a ${horizonLabel.toLowerCase()} observation window.`,
-    ].join("\n"),
-    riskNotes: [
-      "Market conditions can change quickly and invalidate the setup.",
-      "Volatility may create false breakouts, sharp reversals, or poor entry timing.",
-      "This is a structured editorial idea, not a guaranteed outcome.",
-    ].join("\n"),
-    invalidationScenario: `The idea is invalidated if ${asset.displaySymbol} loses momentum, breaks the key setup area, or the broader market mood shifts against the ${values.suggestedAction} thesis.`,
-    disclaimer:
-      values.disclaimer.trim() ||
-      "Not financial advice. For educational purposes only.",
-  };
-}
-
-function formatOptionLabel(value: string) {
-  return value
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
 function buildSafetyItems(values: NewIdeaFormValues) {
   const joinedText = [values.title, values.thesis, values.whyNow, values.riskNotes]
     .join(" ")
