@@ -9,6 +9,7 @@ import type {
   ReviewIdeaSafetyResponse,
   SafetyReviewItem,
 } from "@/lib/ai/review-idea-safety-contract";
+import type { CreateIdeaResponse } from "@/lib/ideas/create-idea-contract";
 import type { MockAsset } from "@/lib/mock-data";
 
 const contentTypeOptions = [
@@ -120,6 +121,8 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
   );
   const [isGenerating, setIsGenerating] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedIdeaId, setSavedIdeaId] = useState<string | null>(null);
   const [safetyItems, setSafetyItems] =
     useState<SafetyReviewItem[]>(defaultSafetyItems);
 
@@ -134,6 +137,7 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
       [name]: value,
     }));
     setSafetyItems(defaultSafetyItems);
+    setSavedIdeaId(null);
   }
 
   async function handleGenerateClick() {
@@ -177,6 +181,7 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
         ...data.idea,
       }));
       setSafetyItems(defaultSafetyItems);
+      setSavedIdeaId(null);
       setWorkflowMessage("API returned a mock-generated idea.");
     } catch {
       setWorkflowMessage("Could not generate idea through API. Try again.");
@@ -227,10 +232,51 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
       setIsReviewing(false);
     }
   }
-  function handleSaveClick() {
-    setWorkflowMessage("Draft prepared locally. Persistence will be connected later.");
-  }
+  async function handleSaveClick() {
+    setIsSaving(true);
+    setWorkflowMessage("Saving idea draft through the API route...");
 
+    try {
+      const response = await fetch("/api/ideas", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assetId: values.assetId,
+          contentType: values.contentType,
+          suggestedAction: values.suggestedAction,
+          conviction: values.conviction,
+          timeHorizon: values.timeHorizon,
+          marketMood: values.marketMood,
+          title: values.title,
+          thesis: values.thesis,
+          whyNow: values.whyNow,
+          riskNotes: values.riskNotes,
+          invalidationScenario: values.invalidationScenario,
+          disclaimer: values.disclaimer,
+          authorContext: values.authorContext,
+        }),
+      });
+      const data = (await response.json()) as
+        | CreateIdeaResponse
+        | { error?: string; message?: string };
+
+      if (!response.ok || !("idea" in data)) {
+        const errorMessage =
+          "message" in data ? data.message : "error" in data ? data.error : null;
+
+        throw new Error(errorMessage ?? "Save failed.");
+      }
+
+      setSavedIdeaId(data.idea.id);
+      setWorkflowMessage(`Saved mock draft as ${data.idea.id}.`);
+    } catch {
+      setWorkflowMessage("Could not save draft through API. Check required fields and try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
   return (
     <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
       <form className="flex flex-col gap-5">
@@ -418,14 +464,25 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
               <ShieldCheck className="size-4" />
               {isReviewing ? "Reviewing..." : "Review safety"}
             </Button>
-            <Button type="button" variant="outline" className="justify-start" onClick={handleSaveClick}>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start"
+              disabled={isSaving}
+              onClick={handleSaveClick}
+            >
               <Save className="size-4" />
-              Save draft
+              {isSaving ? "Saving..." : "Save draft"}
             </Button>
           </div>
           <p className="mt-3 rounded-md border border-border bg-background px-3 py-2 text-sm leading-6 text-muted-foreground">
             {workflowMessage}
           </p>
+          {savedIdeaId ? (
+            <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+              Mock idea id: {savedIdeaId}
+            </div>
+          ) : null}
         </Panel>
 
         <Panel title="Safety status" icon={<ShieldCheck className="size-4" />}>
