@@ -1,4 +1,4 @@
-﻿import "server-only";
+import "server-only";
 
 import { asc, desc, eq } from "drizzle-orm";
 
@@ -34,6 +34,44 @@ export function listPersistedPublicationLog() {
 
 export function getPersistedPublicationById(id: string) {
   return db.select().from(publications).where(eq(publications.id, id)).get() ?? null;
+}
+
+export function markPersistedPublicationSent(
+  id: string,
+  telegramMessageId: string,
+) {
+  const now = Date.now();
+
+  db.update(publications)
+    .set({
+      status: "sent",
+      sentAt: now,
+      telegramMessageId,
+      errorMessage: null,
+      updatedAt: now,
+    })
+    .where(eq(publications.id, id))
+    .run();
+
+  return getPersistedPublicationById(id);
+}
+
+export function markPersistedPublicationFailed(
+  id: string,
+  errorMessage: string,
+) {
+  const now = Date.now();
+
+  db.update(publications)
+    .set({
+      status: "failed",
+      errorMessage,
+      updatedAt: now,
+    })
+    .where(eq(publications.id, id))
+    .run();
+
+  return getPersistedPublicationById(id);
 }
 
 export function createPersistedScheduledPublication(

@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   AlertTriangle,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PublishToTelegramButton } from "./publish-to-telegram-button";
 import { getPersistedDraftById } from "@/lib/drafts/drafts-repository";
 import { getPersistedPublicationById } from "@/lib/publications/publications-repository";
 import {
@@ -83,15 +84,23 @@ export default async function PublicationDetailsPage({
             Back to publications
           </Link>
 
-          {draft ? (
-            <Link
-              href={`/drafts/${draft.id}`}
-              className="inline-flex w-fit items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-muted"
-            >
-              <FileText className="size-4" />
-              Source draft
-            </Link>
-          ) : null}
+          <div className="flex flex-col items-start gap-2 md:items-end">
+            {!isSent ? (
+              <PublishToTelegramButton
+                publicationId={publication.id}
+                disabled={!draft}
+              />
+            ) : null}
+            {draft ? (
+              <Link
+                href={`/drafts/${draft.id}`}
+                className="inline-flex w-fit items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-muted"
+              >
+                <FileText className="size-4" />
+                Source draft
+              </Link>
+            ) : null}
+          </div>
         </div>
 
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
