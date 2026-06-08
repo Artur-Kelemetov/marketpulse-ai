@@ -5,6 +5,7 @@ import {
   Gauge,
   History,
   Layers3,
+  MessagesSquare,
   PenLine,
   Settings2,
 } from "lucide-react";
@@ -52,6 +53,12 @@ export const navigationItems: NavigationItem[] = [
     label: "Publications",
     description: "History",
     icon: History,
+  },
+  {
+    href: "/chat",
+    label: "AI Chat",
+    description: "Assistant",
+    icon: MessagesSquare,
   },
   {
     href: "/settings",

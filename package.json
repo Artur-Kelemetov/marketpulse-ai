@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.68",
+    "@ai-sdk/react": "^3.0.199",
     "@base-ui/react": "^1.5.0",
     "@hookform/resolvers": "^5.4.0",
     "@qdrant/js-client-rest": "^1.18.0",
@@ -59,4 +60,3 @@
     "vitest": "^4.1.8"
   }
 }
-
