@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Bot, CheckCircle2, FileText, Save, ShieldCheck, Sparkles } from "lucide-react";
 
@@ -479,8 +480,11 @@ export function NewIdeaForm({ assets }: NewIdeaFormProps) {
             {workflowMessage}
           </p>
           {savedIdeaId ? (
-            <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-              Mock idea id: {savedIdeaId}
+            <div className="mt-3 flex flex-col gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+              <span>Saved idea id: {savedIdeaId}</span>
+              <Link href={`/ideas/${savedIdeaId}`} className="w-fit underline underline-offset-4">
+                Open saved idea
+              </Link>
             </div>
           ) : null}
         </Panel>

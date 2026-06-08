@@ -1,7 +1,7 @@
 ﻿import "server-only";
 
 import { mkdirSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute } from "node:path";
 
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
@@ -18,6 +18,7 @@ if (sqlitePath !== ":memory:") {
 
 export const sqlite = new Database(sqlitePath);
 sqlite.pragma("journal_mode = WAL");
+sqlite.pragma("foreign_keys = ON");
 
 export const db = drizzle(sqlite, { schema });
 
@@ -34,5 +35,6 @@ function resolveSqlitePath(url: string) {
     return filePath;
   }
 
-  return isAbsolute(filePath) ? filePath : resolve(process.cwd(), filePath);
+  return isAbsolute(filePath) ? filePath : filePath;
 }
+

@@ -8,8 +8,11 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { listPersistedMarketIdeas } from "@/lib/ideas/market-ideas-repository";
 import type { IdeaStatus } from "@/lib/domain/market-idea";
 import { getMockAssets, getMockMarketIdeas } from "@/lib/mock-data";
+
+export const dynamic = "force-dynamic";
 
 const statusLabels: Record<IdeaStatus, string> = {
   draft: "Draft",
@@ -21,7 +24,9 @@ const statusLabels: Record<IdeaStatus, string> = {
 };
 
 export default function IdeasPage() {
-  const ideas = getMockMarketIdeas();
+  const persistedIdeas = listPersistedMarketIdeas();
+  const ideas = persistedIdeas.length > 0 ? persistedIdeas : getMockMarketIdeas();
+  const usingFallbackIdeas = persistedIdeas.length === 0;
   const assets = getMockAssets();
   const assetLookup = new Map(
     assets.map((asset) => [asset.id, asset.displaySymbol]),
@@ -46,7 +51,7 @@ export default function IdeasPage() {
           <SummaryCard
             label="Total ideas"
             value={ideas.length.toString()}
-            helper="Mock editorial pipeline"
+            helper={usingFallbackIdeas ? "Mock editorial pipeline" : "SQLite editorial pipeline"}
             icon={<Bot className="size-4" />}
           />
           <SummaryCard

@@ -1,4 +1,5 @@
-﻿import { createIdeaRequestSchema } from "@/lib/ideas/create-idea-contract";
+﻿import { createPersistedMarketIdea } from "@/lib/ideas/market-ideas-repository";
+import { createIdeaRequestSchema } from "@/lib/ideas/create-idea-contract";
 import { getMockAssetById } from "@/lib/mock-data";
 
 export async function POST(request: Request) {
@@ -34,14 +35,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const createdAt = Date.now();
+  const idea = createPersistedMarketIdea(parsedRequest.data, asset);
 
-  return Response.json({
-    idea: {
-      id: `idea_local_${createdAt}`,
-      status: "draft",
-      title: parsedRequest.data.title,
-      createdAt,
-    },
-  });
+  return Response.json({ idea });
 }

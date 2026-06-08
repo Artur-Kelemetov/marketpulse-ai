@@ -10,17 +10,10 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
-import {
-  getMockAssetById,
-  getMockMarketIdeaById,
-  getMockMarketIdeas,
-} from "@/lib/mock-data";
+import { getPersistedMarketIdeaById } from "@/lib/ideas/market-ideas-repository";
+import { getMockAssetById, getMockMarketIdeaById } from "@/lib/mock-data";
 
-export function generateStaticParams() {
-  return getMockMarketIdeas().map((idea) => ({
-    id: idea.id,
-  }));
-}
+export const dynamic = "force-dynamic";
 
 type IdeaDetailsPageProps = {
   params: Promise<{
@@ -30,7 +23,7 @@ type IdeaDetailsPageProps = {
 
 export default async function IdeaDetailsPage({ params }: IdeaDetailsPageProps) {
   const { id } = await params;
-  const idea = getMockMarketIdeaById(id);
+  const idea = getPersistedMarketIdeaById(id) ?? getMockMarketIdeaById(id);
 
   if (!idea) {
     notFound();
