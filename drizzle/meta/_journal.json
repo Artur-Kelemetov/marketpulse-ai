@@ -15,6 +15,13 @@
       "when": 1780924415594,
       "tag": "0001_wild_kid_colt",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1780925146746,
+      "tag": "0002_yummy_norman_osborn",
+      "breakpoints": true
     }
   ]
 }

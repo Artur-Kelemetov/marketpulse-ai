@@ -8,7 +8,11 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { getPersistedDraftById } from "@/lib/drafts/drafts-repository";
+import { listPersistedPublicationLog } from "@/lib/publications/publications-repository";
 import { getMockDraftById, getMockPublicationLog } from "@/lib/mock-data";
+
+export const dynamic = "force-dynamic";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -18,9 +22,14 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 export default function PublicationsPage() {
-  const publicationLog = getMockPublicationLog().toSorted(
-    (a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime(),
-  );
+  const persistedPublicationLog = listPersistedPublicationLog();
+  const publicationLog =
+    persistedPublicationLog.length > 0
+      ? persistedPublicationLog
+      : getMockPublicationLog().toSorted(
+          (a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime(),
+        );
+  const usingFallbackLog = persistedPublicationLog.length === 0;
   const sentCount = publicationLog.filter(
     (publication) => publication.status === "sent",
   ).length;
@@ -41,7 +50,7 @@ export default function PublicationsPage() {
           <SummaryCard
             label="Total events"
             value={publicationLog.length.toString()}
-            helper="Mock Telegram log"
+            helper={usingFallbackLog ? "Mock Telegram log" : "SQLite Telegram log"}
             icon={<History className="size-4" />}
           />
           <SummaryCard
@@ -60,7 +69,7 @@ export default function PublicationsPage() {
             label="Latest"
             value={
               latestPublication
-                ? dateTimeFormatter.format(new Date(latestPublication.sentAt))
+                ? dateTimeFormatter.format(new Date(getPublicationTime(latestPublication)))
                 : "None"
             }
             helper="Most recent log entry"
@@ -78,7 +87,9 @@ export default function PublicationsPage() {
 
           <div className="divide-y divide-border">
             {publicationLog.map((publication) => {
-              const draft = getMockDraftById(publication.draftId);
+              const draft =
+                getPersistedDraftById(publication.draftId) ??
+                getMockDraftById(publication.draftId);
 
               return (
                 <article key={publication.id} className="p-4 transition-colors hover:bg-muted/30">
@@ -109,7 +120,7 @@ export default function PublicationsPage() {
                     <div className="grid gap-2 text-sm text-muted-foreground">
                       <LogFact
                         label="Sent at"
-                        value={dateTimeFormatter.format(new Date(publication.sentAt))}
+                        value={dateTimeFormatter.format(new Date(getPublicationTime(publication)))}
                       />
                       {draft ? (
                         <Link
@@ -134,6 +145,15 @@ export default function PublicationsPage() {
   );
 }
 
+
+type PublicationTimeShape = {
+  sentAt?: number | string | null;
+  updatedAt?: number | string;
+};
+
+function getPublicationTime(publication: PublicationTimeShape) {
+  return publication.sentAt ?? publication.updatedAt ?? Date.now();
+}
 type SummaryCardProps = {
   label: string;
   value: string;
@@ -199,3 +219,4 @@ function LogFact({ label, value }: LogFactProps) {
     </div>
   );
 }
+

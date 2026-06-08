@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+
+import { SchedulePublicationButton } from "./schedule-publication-button";
 import type { DraftStatus } from "@/db/schema";
 import { getPersistedDraftById } from "@/lib/drafts/drafts-repository";
 import { getPersistedMarketIdeaById } from "@/lib/ideas/market-ideas-repository";
@@ -181,6 +183,9 @@ export default async function DraftDetailsPage({
                     </p>
                   </div>
                 </div>
+              </div>
+              <div className="mt-4">
+                <SchedulePublicationButton draftId={draft.id} disabled={!publishable} />
               </div>
             </Panel>
           </aside>

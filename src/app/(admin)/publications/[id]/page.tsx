@@ -11,11 +11,14 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { getPersistedDraftById } from "@/lib/drafts/drafts-repository";
+import { getPersistedPublicationById } from "@/lib/publications/publications-repository";
 import {
   getMockDraftById,
   getMockPublicationById,
-  getMockPublicationLog,
 } from "@/lib/mock-data";
+
+export const dynamic = "force-dynamic";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -23,12 +26,6 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   hour: "2-digit",
   minute: "2-digit",
 });
-
-export function generateStaticParams() {
-  return getMockPublicationLog().map((publication) => ({
-    id: publication.id,
-  }));
-}
 
 type PublicationDetailsPageProps = {
   params: Promise<{
@@ -40,14 +37,18 @@ export default async function PublicationDetailsPage({
   params,
 }: PublicationDetailsPageProps) {
   const { id } = await params;
-  const publication = getMockPublicationById(id);
+  const publication =
+    getPersistedPublicationById(id) ?? getMockPublicationById(id);
 
   if (!publication) {
     notFound();
   }
 
-  const draft = getMockDraftById(publication.draftId);
+  const draft =
+    getPersistedDraftById(publication.draftId) ?? getMockDraftById(publication.draftId);
   const isSent = publication.status === "sent";
+  const isScheduled = publication.status === "scheduled";
+  const publicationTime = getPublicationTime(publication);
   const safetyItems = draft
     ? [
         {
@@ -69,7 +70,7 @@ export default async function PublicationDetailsPage({
     <main className="flex min-h-screen flex-1 flex-col bg-background text-foreground">
       <PageHeader
         title={publication.title}
-        description="Single publication audit record with Telegram result, draft source, and safety metadata."
+        description="Single publication audit record with schedule, Telegram result, draft source, and safety metadata."
       />
 
       <div className="flex flex-1 flex-col gap-5 px-6 py-6">
@@ -94,10 +95,13 @@ export default async function PublicationDetailsPage({
         </div>
 
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <FactCard label="Status" value={isSent ? "Sent" : "Failed"} />
           <FactCard
-            label="Sent at"
-            value={dateTimeFormatter.format(new Date(publication.sentAt))}
+            label="Status"
+            value={isScheduled ? "Scheduled" : isSent ? "Sent" : "Failed"}
+          />
+          <FactCard
+            label={isScheduled ? "Scheduled for" : "Sent at"}
+            value={dateTimeFormatter.format(new Date(publicationTime))}
           />
           <FactCard
             label="Telegram id"
@@ -111,7 +115,7 @@ export default async function PublicationDetailsPage({
             <Panel
               title="Telegram result"
               icon={
-                isSent ? (
+                isSent || isScheduled ? (
                   <CheckCircle2 className="size-4" />
                 ) : (
                   <AlertTriangle className="size-4" />
@@ -120,18 +124,20 @@ export default async function PublicationDetailsPage({
             >
               <div
                 className={
-                  isSent
+                  isSent || isScheduled
                     ? "rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-900"
                     : "rounded-lg border border-red-200 bg-red-50 p-4 text-red-900"
                 }
               >
                 <h3 className="font-medium">
-                  {isSent ? "Message delivered" : "Delivery failed"}
+                  {isScheduled ? "Publication scheduled" : isSent ? "Message delivered" : "Delivery failed"}
                 </h3>
                 <p className="mt-2 text-sm leading-6">
-                  {isSent
-                    ? `Telegram Bot API accepted the message and returned message id ${publication.telegramMessageId}.`
-                    : publication.errorMessage}
+                  {isScheduled
+                    ? `This draft is scheduled for ${dateTimeFormatter.format(new Date(publicationTime))}.`
+                    : isSent
+                      ? `Telegram Bot API accepted the message and returned message id ${publication.telegramMessageId}.`
+                      : publication.errorMessage}
                 </p>
               </div>
             </Panel>
@@ -143,7 +149,7 @@ export default async function PublicationDetailsPage({
                 </pre>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Source draft was not found in mock data.
+                  Source draft was not found.
                 </p>
               )}
             </Panel>
@@ -208,6 +214,18 @@ export default async function PublicationDetailsPage({
   );
 }
 
+
+type PublicationTimeShape = {
+  scheduledFor?: number | string;
+  sentAt?: number | string | null;
+  updatedAt?: number | string;
+};
+
+function getPublicationTime(publication: PublicationTimeShape) {
+  return (
+    publication.sentAt ?? publication.scheduledFor ?? publication.updatedAt ?? Date.now()
+  );
+}
 type FactCardProps = {
   label: string;
   value: string;
@@ -255,3 +273,4 @@ function AuditRow({ label, value }: AuditRowProps) {
     </div>
   );
 }
+

@@ -8,11 +8,15 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { listPersistedDrafts, getPersistedDraftById } from "@/lib/drafts/drafts-repository";
+import { listPersistedScheduledPublications } from "@/lib/publications/publications-repository";
 import {
   getMockDraftById,
   getMockDrafts,
   getMockScheduledPublications,
 } from "@/lib/mock-data";
+
+export const dynamic = "force-dynamic";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
@@ -31,11 +35,17 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 export default function CalendarPage() {
-  const scheduledPublications = getMockScheduledPublications().toSorted(
-    (a, b) =>
-      new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime(),
-  );
-  const drafts = getMockDrafts();
+  const persistedScheduledPublications = listPersistedScheduledPublications();
+  const scheduledPublications =
+    persistedScheduledPublications.length > 0
+      ? persistedScheduledPublications
+      : getMockScheduledPublications().toSorted(
+          (a, b) =>
+            new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime(),
+        );
+  const usingFallbackSchedule = persistedScheduledPublications.length === 0;
+  const persistedDrafts = listPersistedDrafts();
+  const drafts = persistedDrafts.length > 0 ? persistedDrafts : getMockDrafts();
   const readyDrafts = drafts.filter((draft) => draft.status === "ready").length;
   const nextPublication = scheduledPublications[0] ?? null;
 
@@ -51,7 +61,7 @@ export default function CalendarPage() {
           <SummaryCard
             label="Scheduled"
             value={scheduledPublications.length.toString()}
-            helper="Upcoming mock posts"
+            helper={usingFallbackSchedule ? "Upcoming mock posts" : "Upcoming SQLite posts"}
             icon={<CalendarClock className="size-4" />}
           />
           <SummaryCard
@@ -89,7 +99,9 @@ export default function CalendarPage() {
 
             <div className="divide-y divide-border">
               {scheduledPublications.map((publication) => {
-                const draft = getMockDraftById(publication.draftId);
+                const draft =
+                  getPersistedDraftById(publication.draftId) ??
+                  getMockDraftById(publication.draftId);
                 const scheduledFor = new Date(publication.scheduledFor);
 
                 return (
@@ -111,7 +123,7 @@ export default function CalendarPage() {
                         <p className="mt-2 text-sm leading-6 text-muted-foreground">
                           {draft
                             ? draft.telegramText
-                            : "Linked draft was not found in mock data."}
+                            : "Linked draft was not found."}
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2">
                           <Badge>Scheduled</Badge>
