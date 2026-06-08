@@ -1,5 +1,13 @@
-﻿import type { LucideIcon } from "lucide-react";
-import { Bot, CalendarDays, Gauge, History, Layers3, PenLine } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bot,
+  CalendarDays,
+  Gauge,
+  History,
+  Layers3,
+  PenLine,
+  Settings2,
+} from "lucide-react";
 
 export type NavigationItem = {
   href: string;
@@ -44,5 +52,11 @@ export const navigationItems: NavigationItem[] = [
     label: "Publications",
     description: "History",
     icon: History,
+  },
+  {
+    href: "/settings",
+    label: "Settings",
+    description: "Integrations",
+    icon: Settings2,
   },
 ];
