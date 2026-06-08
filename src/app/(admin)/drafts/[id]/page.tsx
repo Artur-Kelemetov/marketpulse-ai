@@ -11,12 +11,12 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
-import type { MockDraftStatus } from "@/lib/mock-data";
-import {
-  getMockDraftById,
-  getMockDrafts,
-  getMockMarketIdeaById,
-} from "@/lib/mock-data";
+import type { DraftStatus } from "@/db/schema";
+import { getPersistedDraftById } from "@/lib/drafts/drafts-repository";
+import { getPersistedMarketIdeaById } from "@/lib/ideas/market-ideas-repository";
+import { getMockDraftById, getMockMarketIdeaById } from "@/lib/mock-data";
+
+export const dynamic = "force-dynamic";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -25,18 +25,12 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
 });
 
-const draftStatusLabels: Record<MockDraftStatus, string> = {
+const draftStatusLabels: Record<DraftStatus, string> = {
   editing: "Editing",
   needs_review: "Needs review",
   ready: "Ready",
   scheduled: "Scheduled",
 };
-
-export function generateStaticParams() {
-  return getMockDrafts().map((draft) => ({
-    id: draft.id,
-  }));
-}
 
 type DraftDetailsPageProps = {
   params: Promise<{
@@ -48,13 +42,14 @@ export default async function DraftDetailsPage({
   params,
 }: DraftDetailsPageProps) {
   const { id } = await params;
-  const draft = getMockDraftById(id);
+  const draft = getPersistedDraftById(id) ?? getMockDraftById(id);
 
   if (!draft) {
     notFound();
   }
 
-  const linkedIdea = getMockMarketIdeaById(draft.ideaId);
+  const linkedIdea =
+    getPersistedMarketIdeaById(draft.ideaId) ?? getMockMarketIdeaById(draft.ideaId);
   const safetyItems = [
     {
       label: "Disclaimer",
@@ -141,7 +136,7 @@ export default async function DraftDetailsPage({
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Linked market idea was not found in mock data.
+                  Linked market idea was not found.
                 </p>
               )}
             </Panel>
@@ -256,3 +251,4 @@ function SafetyCheck({ label, description, passed }: SafetyCheckProps) {
     </div>
   );
 }
+

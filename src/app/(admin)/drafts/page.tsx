@@ -8,8 +8,12 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
-import type { MockDraftStatus } from "@/lib/mock-data";
+import type { DraftStatus } from "@/db/schema";
+import { listPersistedDrafts } from "@/lib/drafts/drafts-repository";
+import { getPersistedMarketIdeaById } from "@/lib/ideas/market-ideas-repository";
 import { getMockDrafts, getMockMarketIdeaById } from "@/lib/mock-data";
+
+export const dynamic = "force-dynamic";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -18,7 +22,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
 });
 
-const draftStatusLabels: Record<MockDraftStatus, string> = {
+const draftStatusLabels: Record<DraftStatus, string> = {
   editing: "Editing",
   needs_review: "Needs review",
   ready: "Ready",
@@ -26,7 +30,9 @@ const draftStatusLabels: Record<MockDraftStatus, string> = {
 };
 
 export default function DraftsPage() {
-  const drafts = getMockDrafts();
+  const persistedDrafts = listPersistedDrafts();
+  const drafts = persistedDrafts.length > 0 ? persistedDrafts : getMockDrafts();
+  const usingFallbackDrafts = persistedDrafts.length === 0;
   const readyCount = drafts.filter((draft) => draft.status === "ready").length;
   const reviewCount = drafts.filter(
     (draft) => draft.status === "needs_review",
@@ -45,7 +51,7 @@ export default function DraftsPage() {
           <SummaryCard
             label="Total drafts"
             value={drafts.length.toString()}
-            helper="Mock editorial queue"
+            helper={usingFallbackDrafts ? "Mock editorial queue" : "SQLite editorial queue"}
             icon={<FileText className="size-4" />}
           />
           <SummaryCard
@@ -78,7 +84,9 @@ export default function DraftsPage() {
 
           <div className="divide-y divide-border">
             {drafts.map((draft) => {
-              const linkedIdea = getMockMarketIdeaById(draft.ideaId);
+              const linkedIdea =
+                getPersistedMarketIdeaById(draft.ideaId) ??
+                getMockMarketIdeaById(draft.ideaId);
               const publishable = isDraftPublishable(draft);
 
               return (
@@ -230,3 +238,4 @@ function QueueFact({ label, value }: QueueFactProps) {
     </div>
   );
 }
+

@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+
+import { CreateDraftButton } from "./create-draft-button";
 import { getPersistedMarketIdeaById } from "@/lib/ideas/market-ideas-repository";
 import { getMockAssetById, getMockMarketIdeaById } from "@/lib/mock-data";
 
@@ -51,13 +53,16 @@ export default async function IdeaDetailsPage({ params }: IdeaDetailsPageProps) 
             Back to ideas
           </Link>
 
-          <Link
-            href={`/ideas/${idea.id}/edit`}
-            className="inline-flex w-fit items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-muted"
-          >
-            <Pencil className="size-4" />
-            Edit idea
-          </Link>
+          <div className="flex flex-col gap-3 md:items-end">
+            <Link
+              href={`/ideas/${idea.id}/edit`}
+              className="inline-flex w-fit items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-muted"
+            >
+              <Pencil className="size-4" />
+              Edit idea
+            </Link>
+            <CreateDraftButton ideaId={idea.id} />
+          </div>
         </div>
 
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -185,3 +190,4 @@ function BulletList({ items }: BulletListProps) {
     </ul>
   );
 }
+

@@ -20,6 +20,8 @@ import type {
 } from "@/lib/domain/market-idea";
 import type { SafetyReviewItem } from "@/lib/ai/review-idea-safety-contract";
 
+export type DraftStatus = "editing" | "needs_review" | "ready" | "scheduled";
+
 export const assets = sqliteTable(
   "assets",
   {
@@ -104,6 +106,31 @@ export const marketIdeaAssets = sqliteTable(
   ],
 );
 
+
+export const drafts = sqliteTable(
+  "drafts",
+  {
+    id: text("id").primaryKey(),
+    ideaId: text("idea_id")
+      .notNull()
+      .references(() => marketIdeas.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    telegramText: text("telegram_text").notNull(),
+    status: text("status").$type<DraftStatus>().notNull(),
+    hasDisclaimer: integer("has_disclaimer", { mode: "boolean" }).notNull(),
+    hasRiskNotes: integer("has_risk_notes", { mode: "boolean" }).notNull(),
+    hasInvalidationScenario: integer("has_invalidation_scenario", {
+      mode: "boolean",
+    }).notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("drafts_idea_id_idx").on(table.ideaId),
+    index("drafts_status_idx").on(table.status),
+    index("drafts_updated_at_idx").on(table.updatedAt),
+  ],
+);
 export const safetyReviews = sqliteTable(
   "safety_reviews",
   {
@@ -131,5 +158,8 @@ export type MarketIdea = typeof marketIdeas.$inferSelect;
 export type NewMarketIdea = typeof marketIdeas.$inferInsert;
 export type MarketIdeaAsset = typeof marketIdeaAssets.$inferSelect;
 export type NewMarketIdeaAsset = typeof marketIdeaAssets.$inferInsert;
+export type Draft = typeof drafts.$inferSelect;
+export type NewDraft = typeof drafts.$inferInsert;
 export type SafetyReview = typeof safetyReviews.$inferSelect;
 export type NewSafetyReview = typeof safetyReviews.$inferInsert;
+
