@@ -1,7 +1,13 @@
-﻿import {
+import { generateObject } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+import {
+  generatedIdeaPayloadSchema,
   generateIdeaRequestSchema,
+  type GeneratedIdeaPayload,
   type GenerateIdeaRequest,
 } from "@/lib/ai/generate-idea-contract";
+import { getOpenAIModelName, hasOpenAIConfig } from "@/lib/ai/openai-config";
 import { getMockAssetById } from "@/lib/mock-data";
 
 export async function POST(request: Request) {
@@ -37,14 +43,70 @@ export async function POST(request: Request) {
     );
   }
 
+  const generatedIdea =
+    (await generateIdeaWithOpenAI(parsedRequest.data, asset)) ??
+    buildMockGeneratedIdea(parsedRequest.data, asset);
+
   return Response.json({
-    idea: buildMockGeneratedIdea(parsedRequest.data, asset),
+    idea: generatedIdea,
   });
 }
 
 type MockIdeaAsset = NonNullable<ReturnType<typeof getMockAssetById>>;
 
-function buildMockGeneratedIdea(request: GenerateIdeaRequest, asset: MockIdeaAsset) {
+async function generateIdeaWithOpenAI(
+  request: GenerateIdeaRequest,
+  asset: MockIdeaAsset,
+): Promise<GeneratedIdeaPayload | null> {
+  if (!hasOpenAIConfig()) {
+    return null;
+  }
+
+  try {
+    const { object } = await generateObject({
+      model: openai.chat(getOpenAIModelName()),
+      schema: generatedIdeaPayloadSchema,
+      schemaName: "GeneratedMarketIdea",
+      system: [
+        "You are an editorial market research assistant for MarketPulse AI.",
+        "Create concise, structured market idea drafts for an admin dashboard.",
+        "Never promise returns. Never present the output as personalized financial advice.",
+        "Always include risk notes, an invalidation scenario, and a clear disclaimer.",
+      ].join(" "),
+      prompt: buildGenerateIdeaPrompt(request, asset),
+      temperature: 0.4,
+      maxOutputTokens: 900,
+    });
+
+    return object;
+  } catch (error) {
+    console.error("OpenAI idea generation failed. Falling back to mock idea.", error);
+    return null;
+  }
+}
+
+function buildGenerateIdeaPrompt(request: GenerateIdeaRequest, asset: MockIdeaAsset) {
+  const authorContext = request.authorContext?.trim() || "No extra author context.";
+
+  return [
+    `Asset: ${asset.name} (${asset.displaySymbol})`,
+    `Asset type: ${asset.assetType}`,
+    `Current mock price: ${asset.price}`,
+    `24h/period change: ${asset.changePercent24h}%`,
+    `Market mood: ${request.marketMood}`,
+    `Content type: ${request.contentType}`,
+    `Suggested action: ${request.suggestedAction}`,
+    `Conviction: ${request.conviction}`,
+    `Time horizon: ${request.timeHorizon}`,
+    `Author context: ${authorContext}`,
+    "Return only the structured object requested by the schema.",
+  ].join("\n");
+}
+
+function buildMockGeneratedIdea(
+  request: GenerateIdeaRequest,
+  asset: MockIdeaAsset,
+): GeneratedIdeaPayload {
   const actionLabel = formatOptionLabel(request.suggestedAction);
   const moodLabel = formatOptionLabel(request.marketMood);
   const horizonLabel = formatOptionLabel(request.timeHorizon);

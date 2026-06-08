@@ -1,8 +1,19 @@
-﻿import {
+import { generateObject } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { z } from "zod";
+
+import { getOpenAIModelName, hasOpenAIConfig } from "@/lib/ai/openai-config";
+import {
   reviewIdeaSafetyRequestSchema,
+  safetyReviewItemSchema,
   type ReviewIdeaSafetyRequest,
+  type ReviewIdeaSafetyResponse,
   type SafetyReviewItem,
 } from "@/lib/ai/review-idea-safety-contract";
+
+const aiSafetyReviewSchema = z.object({
+  items: z.array(safetyReviewItemSchema).min(1),
+});
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -28,18 +39,70 @@ export async function POST(request: Request) {
     );
   }
 
-  const items = buildSafetyReview(parsedRequest.data);
+  const response =
+    (await reviewIdeaSafetyWithOpenAI(parsedRequest.data)) ??
+    buildSafetyReviewResponse(buildSafetyReview(parsedRequest.data));
+
+  return Response.json(response);
+}
+
+async function reviewIdeaSafetyWithOpenAI(
+  request: ReviewIdeaSafetyRequest,
+): Promise<ReviewIdeaSafetyResponse | null> {
+  if (!hasOpenAIConfig()) {
+    return null;
+  }
+
+  try {
+    const { object } = await generateObject({
+      model: openai.chat(getOpenAIModelName()),
+      schema: aiSafetyReviewSchema,
+      schemaName: "MarketIdeaSafetyReview",
+      system: [
+        "You are a market content safety reviewer.",
+        "Review editorial market idea drafts before publication.",
+        "Flag missing disclaimers, guaranteed-return language, weak risk notes, and missing invalidation scenarios.",
+        "Use severity 'blocking' for issues that should prevent publishing, 'warning' for caution, and 'info' for non-blocking notes.",
+      ].join(" "),
+      prompt: buildSafetyReviewPrompt(request),
+      temperature: 0.2,
+      maxOutputTokens: 900,
+    });
+
+    return buildSafetyReviewResponse(object.items);
+  } catch (error) {
+    console.error("OpenAI safety review failed. Falling back to rule review.", error);
+    return null;
+  }
+}
+
+function buildSafetyReviewResponse(
+  items: SafetyReviewItem[],
+): ReviewIdeaSafetyResponse {
   const passedCount = items.filter((item) => item.passed).length;
   const blockingCount = items.filter(
     (item) => !item.passed && item.severity === "blocking",
   ).length;
 
-  return Response.json({
+  return {
     items,
     passedCount,
     totalCount: items.length,
     blockingCount,
-  });
+  };
+}
+
+function buildSafetyReviewPrompt(request: ReviewIdeaSafetyRequest) {
+  return [
+    `Asset id: ${request.assetId}`,
+    `Title: ${request.title}`,
+    `Thesis: ${request.thesis}`,
+    `Why now: ${request.whyNow}`,
+    `Risk notes: ${request.riskNotes}`,
+    `Invalidation scenario: ${request.invalidationScenario}`,
+    `Disclaimer: ${request.disclaimer}`,
+    "Return concise review items. Include at least disclaimer, risk notes, invalidation, and no profit promise checks.",
+  ].join("\n");
 }
 
 function buildSafetyReview(request: ReviewIdeaSafetyRequest): SafetyReviewItem[] {
