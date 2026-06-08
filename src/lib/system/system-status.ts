@@ -1,6 +1,7 @@
 import "server-only";
 
 import { sqlite } from "@/db/client";
+import { hasAdminAuthConfig } from "@/lib/auth/admin-auth-config";
 import { getOpenAIModelName, hasOpenAIConfig } from "@/lib/ai/openai-config";
 import { hasTelegramConfig } from "@/lib/telegram/telegram-config";
 
@@ -23,6 +24,11 @@ export type SystemStatus = {
     label: string;
     detail: string;
   };
+  adminAuth: {
+    status: IntegrationStatus;
+    label: string;
+    detail: string;
+  };
 };
 
 export function getSystemStatus(): SystemStatus {
@@ -30,6 +36,7 @@ export function getSystemStatus(): SystemStatus {
     database: getDatabaseStatus(),
     openai: getOpenAIStatus(),
     telegram: getTelegramStatus(),
+    adminAuth: getAdminAuthStatus(),
   };
 }
 
@@ -84,5 +91,21 @@ function getTelegramStatus(): SystemStatus["telegram"] {
     status: "ok",
     label: "Telegram configured",
     detail: "Telegram publish route can send messages through Bot API.",
+  };
+}
+
+function getAdminAuthStatus(): SystemStatus["adminAuth"] {
+  if (!hasAdminAuthConfig()) {
+    return {
+      status: "missing",
+      label: "Admin auth disabled",
+      detail: "Add ADMIN_PASSWORD and ADMIN_SESSION_SECRET to protect admin pages.",
+    };
+  }
+
+  return {
+    status: "ok",
+    label: "Admin auth enabled",
+    detail: "Admin routes require a password session cookie.",
   };
 }

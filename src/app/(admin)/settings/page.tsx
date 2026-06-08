@@ -1,4 +1,12 @@
-import { AlertTriangle, CheckCircle2, CircleDashed, Database, KeyRound, Send } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CircleDashed,
+  Database,
+  KeyRound,
+  LockKeyhole,
+  Send,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { getSystemStatus, type IntegrationStatus } from "@/lib/system/system-status";
@@ -7,25 +15,28 @@ export const dynamic = "force-dynamic";
 
 export default function SettingsPage() {
   const status = getSystemStatus();
-  const readyCount = [status.database, status.openai, status.telegram].filter(
-    (item) => item.status === "ok",
-  ).length;
+  const readyCount = [
+    status.database,
+    status.openai,
+    status.telegram,
+    status.adminAuth,
+  ].filter((item) => item.status === "ok").length;
 
   return (
     <main className="flex min-h-screen flex-1 flex-col bg-background text-foreground">
       <PageHeader
         title="Settings"
-        description="Integration readiness for local database, OpenAI generation, and Telegram publishing."
+        description="Integration readiness for local database, OpenAI generation, Telegram publishing, and admin access."
       />
 
       <div className="flex flex-1 flex-col gap-5 px-6 py-6">
         <section className="grid gap-3 md:grid-cols-3">
-          <SummaryCard label="Ready" value={`${readyCount}/3`} helper="Configured integrations" />
+          <SummaryCard label="Ready" value={`${readyCount}/4`} helper="Configured systems" />
           <SummaryCard label="OpenAI model" value={status.openai.model} helper="Used by AI routes" />
           <SummaryCard label="Status API" value="/api/system/status" helper="Machine-readable health check" />
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-3">
+        <section className="grid gap-5 xl:grid-cols-4">
           <IntegrationCard
             title="Database"
             description="SQLite persistence for ideas, drafts, schedules, and publication logs."
@@ -50,6 +61,14 @@ export default function SettingsPage() {
             detail={status.telegram.detail}
             icon={<Send className="size-5" />}
           />
+          <IntegrationCard
+            title="Admin auth"
+            description="Password session protection for admin routes."
+            status={status.adminAuth.status}
+            label={status.adminAuth.label}
+            detail={status.adminAuth.detail}
+            icon={<LockKeyhole className="size-5" />}
+          />
         </section>
 
         <section className="rounded-lg border border-border bg-card text-card-foreground">
@@ -62,6 +81,8 @@ export default function SettingsPage() {
             <ChecklistRow name="OPENAI_MODEL" value={status.openai.model} status={status.openai.status === "error" ? "error" : "ok"} />
             <ChecklistRow name="TELEGRAM_BOT_TOKEN" value="required for Telegram publishing" status={status.telegram.status} />
             <ChecklistRow name="TELEGRAM_CHANNEL_ID" value="required for Telegram publishing" status={status.telegram.status} />
+            <ChecklistRow name="ADMIN_PASSWORD" value="required to protect admin pages" status={status.adminAuth.status} />
+            <ChecklistRow name="ADMIN_SESSION_SECRET" value="required to protect admin pages" status={status.adminAuth.status} />
           </div>
         </section>
       </div>

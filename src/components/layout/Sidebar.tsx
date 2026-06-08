@@ -1,5 +1,6 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
+import { LogoutButton } from "./LogoutButton";
 import { navigationItems } from "./navigation";
 
 export function Sidebar() {
@@ -35,6 +36,10 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <div className="mt-3 border-t border-border pt-3 lg:mt-6">
+        <LogoutButton />
+      </div>
     </aside>
   );
 }
